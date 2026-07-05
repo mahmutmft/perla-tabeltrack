@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import TopBar from '../components/TopBar.jsx';
+import { formatPrice } from '../currency.js';
 
 export default function Pay() {
   const { id } = useParams();
@@ -45,7 +46,7 @@ export default function Pay() {
       <div className="screen" onClick={() => setShowCustomer(false)}>
         <div className="center-flex">
           <span className="muted">Total due</span>
-          <span className="customer-total">${table.total.toFixed(2)}</span>
+          <span className="customer-total">{formatPrice(table.total)}</span>
           <span className="muted">Tap anywhere to go back</span>
         </div>
       </div>
@@ -60,7 +61,7 @@ export default function Pay() {
         <div className="big-buttons">
           <div className="total-bar">
             <span>Total</span>
-            <span className="amount">${table.total.toFixed(2)}</span>
+            <span className="amount">{formatPrice(table.total)}</span>
           </div>
           <button className="big-button primary" onClick={() => setStep('confirm')}>
             <span className="emoji">💵</span>
@@ -72,7 +73,7 @@ export default function Pay() {
       {step === 'confirm' && (
         <div className="center-flex">
           <span className="muted">Amount due</span>
-          <span className="customer-total">${table.total.toFixed(2)}</span>
+          <span className="customer-total">{formatPrice(table.total)}</span>
 
           {error && <div className="error-text">{error}</div>}
 

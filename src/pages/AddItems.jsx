@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import TopBar from '../components/TopBar.jsx';
+import { formatPrice } from '../currency.js';
 
 export default function AddItems() {
   const { id } = useParams();
@@ -110,7 +111,7 @@ export default function AddItems() {
             <div className="product-row" key={p.id}>
               <div>
                 <div className="name">{p.name}</div>
-                <div className="price">${p.price.toFixed(2)}</div>
+                <div className="price">{formatPrice(p.price)}</div>
               </div>
               <div className="stepper">
                 {qty > 0 && (

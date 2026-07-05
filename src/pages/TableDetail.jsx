@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import TopBar from '../components/TopBar.jsx';
+import { formatPrice } from '../currency.js';
 
 export default function TableDetail() {
   const { id } = useParams();
@@ -100,7 +101,7 @@ export default function TableDetail() {
 
       <div className="total-bar">
         <span>Total</span>
-        <span className="amount">${table.total.toFixed(2)}</span>
+        <span className="amount">{formatPrice(table.total)}</span>
       </div>
 
       <div className="btn-row">

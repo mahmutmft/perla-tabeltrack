@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api.js';
+import { formatPrice } from '../../currency.js';
 
 export default function Products() {
   const [products, setProducts] = useState([]);
@@ -52,8 +53,8 @@ export default function Products() {
         <div className="btn-row">
           <input
             type="number"
-            step="0.01"
-            placeholder="Price"
+            step="1"
+            placeholder="Price (ден)"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
           />
@@ -80,7 +81,7 @@ export default function Products() {
             <div>
               <div className="name">{p.name}</div>
               <div className="price">
-                ${p.price.toFixed(2)} {p.category_name ? `· ${p.category_name}` : ''}
+                {formatPrice(p.price)} {p.category_name ? `· ${p.category_name}` : ''}
               </div>
             </div>
             <button className="remove-x" onClick={() => remove(p.id)}>
