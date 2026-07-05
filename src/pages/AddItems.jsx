@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import TopBar from '../components/TopBar.jsx';
@@ -14,6 +14,13 @@ export default function AddItems() {
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
 
+  const cartRef = useRef({});
+  const queuesRef = useRef({}); // product_id -> promise chain, keeps taps from racing each other
+
+  useEffect(() => {
+    cartRef.current = cart;
+  }, [cart]);
+
   function refreshCart(table) {
     const map = {};
     table.items
@@ -22,6 +29,20 @@ export default function AddItems() {
         map[i.product_id] = { itemId: i.id, quantity: i.quantity };
       });
     setCart(map);
+  }
+
+  function resync() {
+    return api
+      .getTable(id)
+      .then(({ table }) => refreshCart(table))
+      .catch(() => {});
+  }
+
+  function runQueued(productId, task) {
+    const previous = queuesRef.current[productId] || Promise.resolve();
+    const next = previous.then(task, task);
+    queuesRef.current[productId] = next;
+    return next;
   }
 
   useEffect(() => {
@@ -42,31 +63,52 @@ export default function AddItems() {
     });
   }, [products, activeCategory, query]);
 
-  async function increment(product) {
+  function increment(product) {
     setError('');
-    try {
-      const { table } = await api.addItem(id, product.id, 1);
-      refreshCart(table);
-    } catch (err) {
-      setError(err.message);
-    }
+    setCart((prev) => ({
+      ...prev,
+      [product.id]: {
+        itemId: prev[product.id]?.itemId ?? null,
+        quantity: (prev[product.id]?.quantity || 0) + 1,
+      },
+    }));
+    runQueued(product.id, () =>
+      api
+        .addItem(id, product.id, 1)
+        .then(({ table }) => refreshCart(table))
+        .catch((err) => {
+          setError(err.message);
+          return resync();
+        })
+    );
   }
 
-  async function decrement(product) {
-    const entry = cart[product.id];
-    if (!entry) return;
+  function decrement(product) {
+    if (!cart[product.id]) return;
     setError('');
-    try {
-      let table;
-      if (entry.quantity <= 1) {
-        ({ table } = await api.removeItem(id, entry.itemId));
-      } else {
-        ({ table } = await api.setItemQuantity(id, entry.itemId, entry.quantity - 1));
-      }
-      refreshCart(table);
-    } catch (err) {
-      setError(err.message);
-    }
+    setCart((prev) => {
+      const entry = prev[product.id];
+      if (!entry) return prev;
+      const nextQty = entry.quantity - 1;
+      const copy = { ...prev };
+      if (nextQty <= 0) delete copy[product.id];
+      else copy[product.id] = { ...entry, quantity: nextQty };
+      return copy;
+    });
+    runQueued(product.id, () => {
+      const entry = cartRef.current[product.id];
+      if (!entry?.itemId) return resync();
+      const request =
+        entry.quantity <= 1
+          ? api.removeItem(id, entry.itemId)
+          : api.setItemQuantity(id, entry.itemId, entry.quantity - 1);
+      return request
+        .then(({ table }) => refreshCart(table))
+        .catch((err) => {
+          setError(err.message);
+          return resync();
+        });
+    });
   }
 
   return (

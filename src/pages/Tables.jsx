@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import TopBar from '../components/TopBar.jsx';
@@ -8,14 +8,20 @@ export default function Tables() {
   const navigate = useNavigate();
   const [tables, setTables] = useState(null);
   const [error, setError] = useState('');
+  const fetchingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     function load() {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
       api
         .listTables()
         .then(({ tables }) => !cancelled && setTables(tables))
-        .catch((err) => !cancelled && setError(err.message));
+        .catch((err) => !cancelled && setError(err.message))
+        .finally(() => {
+          fetchingRef.current = false;
+        });
     }
     load();
     const interval = setInterval(load, 4000);

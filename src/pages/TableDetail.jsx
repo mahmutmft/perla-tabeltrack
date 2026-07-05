@@ -1,22 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import TopBar from '../components/TopBar.jsx';
 import { formatPrice } from '../currency.js';
+
+function withRecomputedTotal(table) {
+  const total = table.items.reduce((sum, i) => sum + i.price_snapshot * i.quantity, 0);
+  return { ...table, total };
+}
 
 export default function TableDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [table, setTable] = useState(null);
   const [error, setError] = useState('');
+  const fetchingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     function load() {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
       api
         .getTable(id)
         .then(({ table }) => !cancelled && setTable(table))
-        .catch((err) => !cancelled && setError(err.message));
+        .catch((err) => !cancelled && setError(err.message))
+        .finally(() => {
+          fetchingRef.current = false;
+        });
     }
     load();
     const interval = setInterval(load, 4000);
@@ -39,13 +50,19 @@ export default function TableDetail() {
     }
   }
 
-  async function removeItem(item) {
-    try {
-      const { table } = await api.removeItem(id, item.id);
-      setTable(table);
-    } catch (err) {
-      setError(err.message);
-    }
+  function removeItem(item) {
+    setError('');
+    setTable((t) => withRecomputedTotal({ ...t, items: t.items.filter((i) => i.id !== item.id) }));
+    api
+      .removeItem(id, item.id)
+      .then(({ table }) => setTable(table))
+      .catch((err) => {
+        setError(err.message);
+        api
+          .getTable(id)
+          .then(({ table }) => setTable(table))
+          .catch(() => {});
+      });
   }
 
   if (!table) {
