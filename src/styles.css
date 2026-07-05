@@ -242,6 +242,10 @@ input:focus {
   font-size: 14px;
 }
 
+.product-row.editable {
+  cursor: pointer;
+}
+
 .qty-badge {
   background: var(--accent);
   color: white;

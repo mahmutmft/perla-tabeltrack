@@ -10,6 +10,12 @@ export default function Products() {
   const [categoryId, setCategoryId] = useState('');
   const [error, setError] = useState('');
 
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
   function load() {
     Promise.all([api.listAllProducts(), api.listCategories()]).then(([p, c]) => {
       setProducts(p.products);
@@ -46,6 +52,38 @@ export default function Products() {
     }
   }
 
+  function startEdit(p) {
+    setError('');
+    setEditingId(p.id);
+    setEditName(p.name);
+    setEditPrice(String(p.price));
+    setEditCategoryId(p.category_id ? String(p.category_id) : '');
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(e) {
+    e.preventDefault();
+    if (!editName.trim()) return;
+    setSavingEdit(true);
+    setError('');
+    try {
+      await api.updateProduct(editingId, {
+        name: editName.trim(),
+        price: Number(editPrice) || 0,
+        category_id: editCategoryId || null,
+      });
+      setEditingId(null);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   return (
     <div className="list" style={{ marginTop: 4 }}>
       <form className="field" onSubmit={add} style={{ gap: 10 }}>
@@ -76,19 +114,55 @@ export default function Products() {
 
       {products
         .filter((p) => p.active)
-        .map((p) => (
-          <div className="product-row" key={p.id}>
-            <div>
-              <div className="name">{p.name}</div>
-              <div className="price">
-                {formatPrice(p.price)} {p.category_name ? `· ${p.category_name}` : ''}
+        .map((p) =>
+          editingId === p.id ? (
+            <form className="field" onSubmit={saveEdit} key={p.id} style={{ gap: 10 }}>
+              <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
+              <div className="btn-row">
+                <input
+                  type="number"
+                  step="1"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                />
+                <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)}>
+                  <option value="">No category</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
+              <div className="btn-row">
+                <button className="btn ghost" type="button" onClick={cancelEdit}>
+                  Cancel
+                </button>
+                <button className="btn primary" type="submit" disabled={savingEdit}>
+                  Save
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="product-row editable" key={p.id} onClick={() => startEdit(p)}>
+              <div>
+                <div className="name">{p.name}</div>
+                <div className="price">
+                  {formatPrice(p.price)} {p.category_name ? `· ${p.category_name}` : ''}
+                </div>
+              </div>
+              <button
+                className="remove-x"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  remove(p.id);
+                }}
+              >
+                ✕
+              </button>
             </div>
-            <button className="remove-x" onClick={() => remove(p.id)}>
-              ✕
-            </button>
-          </div>
-        ))}
+          )
+        )}
       {products.filter((p) => p.active).length === 0 && (
         <div className="empty-state">No products yet.</div>
       )}
